@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>将棋棋譜読み上げトレーナー v2 | By htmlマン</title>
+    <title>将棋棋譜読み上げトレーナー v3 | By htmlマン</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -15,11 +15,11 @@
         }
 
         body {
-            font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
             margin: 0;
-            padding: 20px;
+            padding: 15px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -28,31 +28,34 @@
 
         h1 {
             color: var(--primary-color);
-            margin-bottom: 10px;
-            font-size: 1.8rem;
+            margin-bottom: 5px;
+            font-size: 1.5rem;
+            text-align: center;
         }
 
         .subtitle {
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             color: #666;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
+            text-align: center;
         }
 
         .container {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr; /* Default mobile first */
             gap: 20px;
             width: 100%;
             max-width: 900px;
             background: var(--panel-bg);
-            padding: 20px;
+            padding: 15px;
             border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            box-sizing: border-box;
         }
 
-        @media (max-width: 768px) {
+        @media (min-width: 768px) {
             .container {
-                grid-template-columns: 1fr;
+                grid-template-columns: 1fr 1fr;
             }
         }
 
@@ -65,20 +68,40 @@
 
         .file-upload-wrapper {
             background: #eef2f7;
-            padding: 10px;
+            padding: 15px;
             border-radius: 8px;
-            border: 1px dashed #adb5bd;
+            border: 2px dashed #adb5bd;
             text-align: center;
         }
 
+        /* Customize file input for mobile */
         input[type="file"] {
             font-size: 0.9rem;
             width: 100%;
+            padding: 10px 0;
+        }
+
+        .tool-bar {
+            display: flex;
+            gap: 10px;
+            justify-content: space-between;
+        }
+
+        .btn-paste {
+            background-color: #2980b9;
+            color: white;
+            flex: 1;
+        }
+
+        .btn-reload {
+            background-color: #7f8c8d;
+            color: white;
+            flex: 1;
         }
 
         textarea {
             width: 100%;
-            height: 300px;
+            height: 200px;
             padding: 10px;
             border: 1px solid #ccc;
             border-radius: 8px;
@@ -98,7 +121,7 @@
         .status-display {
             background: var(--primary-color);
             color: white;
-            padding: 20px;
+            padding: 15px;
             border-radius: 8px;
             text-align: center;
             min-height: 80px;
@@ -106,10 +129,14 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 10; /* Keep visible on mobile scroll */
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
 
         #current-move-text {
-            font-size: 2rem;
+            font-size: 1.8rem;
             font-weight: bold;
         }
 
@@ -132,16 +159,16 @@
             font-weight: bold;
             cursor: pointer;
             transition: all 0.2s;
+            font-size: 0.95rem;
         }
 
         button:active {
-            transform: scale(0.98);
+            transform: scale(0.96);
         }
 
         .btn-start { background-color: var(--primary-color); color: white; }
         .btn-pause { background-color: #f39c12; color: white; }
         .btn-stop { background-color: #c0392b; color: white; }
-        .btn-reset { background-color: #7f8c8d; color: white; }
 
         .settings {
             background: #eee;
@@ -153,7 +180,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
         }
         
         .setting-row label {
@@ -162,22 +189,22 @@
         }
 
         input[type="range"] {
-            width: 60%;
+            width: 50%;
         }
 
         /* Move List */
         .move-list {
-            margin-top: 20px;
-            height: 200px;
+            height: 250px;
             overflow-y: auto;
             border: 1px solid #eee;
             border-radius: 4px;
             padding: 5px;
             font-size: 0.9rem;
+            background: #fff;
         }
 
         .move-item {
-            padding: 4px 8px;
+            padding: 8px;
             border-bottom: 1px solid #f0f0f0;
             cursor: pointer;
         }
@@ -186,77 +213,81 @@
             background-color: var(--highlight-color);
             font-weight: bold;
         }
+
+        /* Radio buttons for encoding */
+        .encoding-selector {
+            font-size: 0.8rem;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
 
-    <h1>将棋棋譜読み上げトレーナー v2</h1>
-    <div class="subtitle">World's #1 Programmer "HTML MAN" Edition</div>
+    <h1>将棋棋譜読み上げ v3</h1>
+    <div class="subtitle">スマホ対応版</div>
 
     <div class="container">
         <div class="input-section">
             <div class="file-upload-wrapper">
-                <label for="kifu-file" style="display:block; margin-bottom:5px; font-weight:bold; font-size:0.9rem;">
-                    📁 KIFファイルを開く (.kif/.txt)
+                <label for="kifu-file" style="display:block; margin-bottom:8px; font-weight:bold;">
+                    📂 ファイルを選択 (KIFなど)
                 </label>
-                <input type="file" id="kifu-file" accept=".kif,.kifu,.txt" onchange="handleFileUpload(event)">
-                <div style="font-size:0.7rem; color:#666; margin-top:4px;">※Shift_JIS形式として読み込みます</div>
+                <input type="file" id="kifu-file" onchange="handleFileUpload(event)">
+                
+                <div class="encoding-selector">
+                    <span>文字コード:</span>
+                    <label><input type="radio" name="encoding" value="Shift_JIS" checked> Shift_JIS(標準)</label>
+                    <label><input type="radio" name="encoding" value="UTF-8"> UTF-8</label>
+                </div>
+                <div style="font-size:0.7rem; color:#666; margin-top:4px;">※文字化けする場合はUTF-8を選んで再読込</div>
             </div>
 
-            <textarea id="kifu-input" placeholder="ここに棋譜を貼り付けるか、上のボタンからファイルを選択してください。
-例：
-1 ７六歩
-2 ３四歩
-...">
-1 ７六歩
-2 ３四歩
-3 ２六歩
-4 ４四歩
-5 ２五歩
-6 ３三角
-7 ４八銀
-8 ３二銀
-9 ５六歩
-10 ５四歩
-</textarea>
-            <button class="btn-reset" onclick="parseKifu()">テキストエリアの内容を再読み込み</button>
+            <div class="tool-bar">
+                <button class="btn-paste" onclick="pasteFromClipboard()">📋 ペースト</button>
+                <button class="btn-reload" onclick="parseKifu()">🔄 再解析</button>
+            </div>
+
+            <textarea id="kifu-input" placeholder="ここに棋譜を貼り付け"></textarea>
         </div>
 
         <div class="control-section">
             <div class="status-display">
                 <div id="current-move-text">待機中</div>
-                <div id="next-move-text">「開始」を押してください</div>
+                <div id="next-move-text">ファイルを読み込むか<br>ペーストしてください</div>
             </div>
 
             <div class="controls">
-                <button class="btn-start" id="btn-play" onclick="togglePlay()">読み上げ開始</button>
-                <button class="btn-stop" onclick="stopReading()">停止・リセット</button>
+                <button class="btn-start" id="btn-play" onclick="togglePlay()">▶ 再生</button>
+                <button class="btn-stop" onclick="stopReading()">■ 停止</button>
             </div>
 
             <div class="settings">
                 <div class="setting-row">
-                    <label>読み上げ速度: <span id="rate-val">1.0</span></label>
+                    <label>速度: <span id="rate-val">1.0</span></label>
                     <input type="range" id="rate" min="0.5" max="2.0" step="0.1" value="1.0" oninput="updateSettings()">
                 </div>
                 <div class="setting-row">
-                    <label>間隔 (秒): <span id="interval-val">3.0</span></label>
-                    <input type="range" id="interval" min="1" max="15" step="0.5" value="3.0" oninput="updateSettings()">
+                    <label>間隔: <span id="interval-val">3.0</span>秒</label>
+                    <input type="range" id="interval" min="0" max="15" step="0.5" value="3.0" oninput="updateSettings()">
                 </div>
                 <div class="setting-row">
                     <label style="font-weight:normal; font-size: 0.8rem;">
-                        <input type="checkbox" id="read-side" checked> 先手/後手を読む
+                        <input type="checkbox" id="read-side" checked> 手番を読む
                     </label>
                 </div>
             </div>
 
             <div class="move-list" id="move-list">
-                <div style="padding:10px; color:#999;">ここに読み込まれた指し手が表示されます</div>
+                <div style="padding:10px; color:#999; text-align:center;">指し手リスト</div>
             </div>
         </div>
     </div>
 
     <script>
-        // State Management
+        // State
         let moves = [];
         let currentIndex = 0;
         let isPlaying = false;
@@ -264,7 +295,7 @@
         let synth = window.speechSynthesis;
         let speechUtterance = null;
 
-        // DOM Elements
+        // Elements
         const inputArea = document.getElementById('kifu-input');
         const moveListArea = document.getElementById('move-list');
         const currentMoveText = document.getElementById('current-move-text');
@@ -277,44 +308,50 @@
         const checkReadSide = document.getElementById('read-side');
         const fileInput = document.getElementById('kifu-file');
 
-        // Initialize
-        window.onload = () => {
-            parseKifu(); 
-        };
-
+        // Settings update
         function updateSettings() {
             rateVal.innerText = rateInput.value;
             intervalVal.innerText = intervalInput.value;
         }
 
-        // --- File Upload Logic (New Feature) ---
+        // Paste function (Mobile friendly)
+        async function pasteFromClipboard() {
+            try {
+                const text = await navigator.clipboard.readText();
+                inputArea.value = text;
+                parseKifu();
+                statusUpdate("貼付完了", "クリップボードから読み込みました");
+            } catch (err) {
+                alert("クリップボードへのアクセスが許可されていません。\nテキストエリアを長押しして「貼り付け」を行ってください。");
+            }
+        }
+
+        // File Upload with Encoding Switch
         function handleFileUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
 
             const reader = new FileReader();
             
-            // 重要: 一般的なKIFファイル(柿木将棋など)は Shift_JIS で保存されています。
-            // UTF-8で読み込むと文字化けするため、明示的に 'Shift_JIS' を指定します。
-            reader.readAsText(file, 'Shift_JIS');
+            // Get selected encoding
+            const encoding = document.querySelector('input[name="encoding"]:checked').value;
+            
+            reader.readAsText(file, encoding);
 
             reader.onload = function(e) {
                 const text = e.target.result;
                 inputArea.value = text;
-                parseKifu(); // Parse immediately after loading
-                statusUpdate("読込完了", "ファイルから棋譜を読み込みました");
-                
-                // Clear file input so same file can be selected again if needed
-                fileInput.value = '';
+                parseKifu();
+                statusUpdate("読込完了", "ファイルを読み込みました");
+                fileInput.value = ''; // Reset
             };
 
             reader.onerror = function() {
-                alert("ファイルの読み込みに失敗しました。");
+                alert("読み込み失敗。別のファイルを試してください。");
             };
         }
-        // --------------------------------------
 
-        // Parse Kifu Text
+        // Parser
         function parseKifu() {
             stopReading();
             const text = inputArea.value;
@@ -327,22 +364,21 @@
                 line = line.trim();
                 if (!line) return;
 
-                // 1. Clean move numbers
+                // Typical KIF cleanup
                 let cleanLine = line.replace(/^\d+\s*/, ''); 
                 
-                // 2. Identify turn
+                // Side detection
                 let side = "";
                 if (cleanLine.includes('▲') || cleanLine.includes('▼')) side = "先手";
                 else if (cleanLine.includes('△') || cleanLine.includes('▽')) side = "後手";
 
-                // 3. Extract the core move text
+                // Move extraction
                 let moveTextMatch = cleanLine.match(/([１-９1-9][一二三四五六七八九][歩香桂銀金角飛王玉と成龍馬同\s]+(?:\(.*\))?)/);
                 
                 if (moveTextMatch) {
                     let rawMove = moveTextMatch[0];
                     let displayMove = rawMove.replace(/\(\d+\)/, '');
                     
-                    // Create speakable text
                     let speakText = displayMove.replace(/\s+/g, '');
                     if (speakText.startsWith('同')) {
                         speakText = speakText.replace('同', 'どう、');
@@ -360,10 +396,14 @@
             });
 
             renderMoveList();
-            if(moves.length > 0) {
+            if(moves.length === 0 && text.length > 0) {
+                 statusUpdate("エラー", "有効な棋譜が見つかりません");
+                 // Auto-detect Mojibake hint
+                 if (text.includes('')) {
+                     alert("文字化けしている可能性があります。「UTF-8」を選んでファイルを読み直してください。");
+                 }
+            } else if (moves.length > 0) {
                 statusUpdate("待機中", `${moves.length} 手を読み込みました`);
-            } else {
-                statusUpdate("待機中", "棋譜が見つかりません");
             }
         }
 
@@ -387,24 +427,19 @@
         }
 
         function togglePlay() {
-            if (isPlaying) {
-                pauseReading();
-            } else {
-                startReading();
-            }
+            if (isPlaying) pauseReading();
+            else startReading();
         }
 
         function startReading() {
             if (moves.length === 0) {
-                alert("棋譜が見つかりません。");
+                alert("棋譜がありません。");
                 return;
             }
-            if (currentIndex >= moves.length) {
-                currentIndex = 0;
-            }
+            if (currentIndex >= moves.length) currentIndex = 0;
 
             isPlaying = true;
-            btnPlay.innerText = "一時停止";
+            btnPlay.innerText = "⏸ 一時停止";
             btnPlay.className = "btn-pause";
             
             readNextMove();
@@ -414,7 +449,7 @@
             isPlaying = false;
             clearTimeout(timer);
             synth.cancel();
-            btnPlay.innerText = "再開";
+            btnPlay.innerText = "▶ 再開";
             btnPlay.className = "btn-start";
             statusUpdate("一時停止", "");
         }
@@ -424,7 +459,7 @@
             clearTimeout(timer);
             synth.cancel();
             currentIndex = 0;
-            btnPlay.innerText = "読み上げ開始";
+            btnPlay.innerText = "▶ 再生";
             btnPlay.className = "btn-start";
             
             document.querySelectorAll('.move-item').forEach(el => el.classList.remove('active'));
@@ -435,7 +470,7 @@
             if (!isPlaying) return;
             if (currentIndex >= moves.length) {
                 stopReading();
-                statusUpdate("終了", "全ての指し手を読み上げました");
+                statusUpdate("終了", "読み上げ完了");
                 return;
             }
 
@@ -469,8 +504,10 @@
                 }, intervalMs);
             };
 
+            // Mobile often needs error handling for speech
             speechUtterance.onerror = function(e) {
-                console.error('Speech error', e);
+                console.error(e);
+                // Force continue on error
                 timer = setTimeout(() => {
                     currentIndex++;
                     readNextMove();
@@ -485,14 +522,18 @@
             const el = document.getElementById(`move-${index}`);
             if (el) {
                 el.classList.add('active');
-                el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                // Center scroll
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         }
 
         function statusUpdate(main, sub) {
             currentMoveText.innerText = main;
-            nextMoveText.innerText = sub;
+            nextMoveText.innerHTML = sub;
         }
+        
+        // Initial setup
+        parseKifu(); // Parse placeholder
     </script>
 </body>
 </html>
