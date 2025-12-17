@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>将棋棋譜読み上げトレーナー v5 | By htmlマン</title>
+    <title>将棋棋譜読み上げトレーナー v6 | By htmlマン</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -193,8 +193,8 @@
 </head>
 <body>
 
-    <h1>将棋棋譜読み上げ v5</h1>
-    <div class="subtitle">自然な発音対応版</div>
+    <h1>将棋棋譜読み上げ v6</h1>
+    <div class="subtitle">手番判定強化 & 自然な発音</div>
 
     <div class="container">
         <div class="input-section">
@@ -240,8 +240,8 @@
                     <input type="range" id="interval" min="0" max="15" step="0.5" value="3.0" oninput="updateSettings()">
                 </div>
                 <div class="setting-row">
-                    <label style="font-weight:normal; font-size: 0.8rem;">
-                        <input type="checkbox" id="read-side" checked> 手番を読む
+                    <label style="font-weight:normal; font-size: 0.8rem; cursor:pointer;">
+                        <input type="checkbox" id="read-side" checked> 手番(先手/後手)を読む
                     </label>
                 </div>
             </div>
@@ -311,7 +311,7 @@
             };
         }
 
-        // --- Parser (Pronunciation Logic Added) ---
+        // --- Parser (Logic Updated for Side Detection) ---
         function parseKifu() {
             stopReading();
             const text = inputArea.value;
@@ -324,16 +324,32 @@
                 line = line.trim();
                 if (!line) return;
 
-                // Cleanup Time and Move Number
+                // 1. Extract Move Number (Important for side detection fallback)
+                // Looks for "1 76Fu" or "1. 76Fu"
+                let moveNum = null;
+                let matchNum = line.match(/^(\d+)/);
+                if(matchNum) {
+                    moveNum = parseInt(matchNum[1]);
+                }
+
+                // 2. Cleanup Time and Brackets
                 let lineNoTime = line.replace(/\(\s*\d+:[^)]+\)/g, '');
-                let lineClean = lineNoTime.replace(/\(\d+\)/g, '').replace(/^\d+\s*/, ''); 
+                // Clean coordinate source e.g. (77) and leading numbers
+                let lineClean = lineNoTime.replace(/\(\d+\)/g, '').replace(/^\d+\.?\s*/, ''); 
                 
-                // Identify Side
+                // 3. Identify Side (Robust Logic)
                 let side = "";
+                // First check for explicit symbols
                 if (lineClean.includes('▲') || lineClean.includes('▼')) side = "先手";
                 else if (lineClean.includes('△') || lineClean.includes('▽')) side = "後手";
+                
+                // Fallback: If no symbol but we have a move number, infer side
+                // Odd = Sente, Even = Gote (Standard KIF logic)
+                if (!side && moveNum !== null) {
+                    side = (moveNum % 2 !== 0) ? "先手" : "後手";
+                }
 
-                // Extract Move Text
+                // 4. Extract Move Text
                 let moveTextMatch = lineClean.match(/([１-９1-9][一二三四五六七八九][歩香桂銀金角飛王玉と成龍馬同\s]+)/);
                 
                 if (moveTextMatch) {
@@ -341,24 +357,21 @@
                     let displayMove = rawMove.trim();
                     
                     // --- Pronunciation Processing ---
-                    // Base cleanup
                     let speakText = displayMove.replace(/\s+/g, '');
                     
-                    // 1. Coordinate Handling
+                    // Coordinates
                     if (speakText.startsWith('同')) {
-                        // "Dou" becomes "Dou," to add a slight pause and correct reading
                         speakText = speakText.replace(/^同/, 'どう、');
                     } else {
-                        // Add pause after coordinates (e.g., 76 -> 76, )
                         speakText = speakText.replace(/([１-９][一二三四五六七八九])/, '$1、'); 
                     }
 
-                    // 2. Piece/Action Pronunciation Overrides (User Request + Common Fixes)
+                    // Pronunciation Fixes
                     speakText = speakText
-                        .replace(/桂/g, 'けい')  // Katsura -> Kei
-                        .replace(/角/g, 'かく')  // Kado/Sumi -> Kaku
-                        .replace(/成/g, 'なり')  // Sei/Naru -> Nari
-                        .replace(/歩/g, 'ふ')    // Ayumi -> Fu (Very common error)
+                        .replace(/桂/g, 'けい')
+                        .replace(/角/g, 'かく')
+                        .replace(/成/g, 'なり')
+                        .replace(/歩/g, 'ふ')
                         .replace(/銀/g, 'ぎん')
                         .replace(/金/g, 'きん')
                         .replace(/飛/g, 'ひ')
@@ -393,7 +406,9 @@
             moves.forEach((move, index) => {
                 const div = document.createElement('div');
                 div.className = 'move-item';
-                div.innerText = `${index + 1}. ${move.side ? move.side : ''}${move.display}`;
+                // Show detected side in list for verification
+                const sideSymbol = move.side === "先手" ? "▲" : (move.side === "後手" ? "△" : "");
+                div.innerText = `${index + 1}. ${sideSymbol}${move.display}`;
                 div.onclick = () => jumpTo(index);
                 div.id = `move-${index}`;
                 moveListArea.appendChild(div);
@@ -455,12 +470,13 @@
             highlightMove(currentIndex);
 
             let textToSpeak = "";
+            // Check box to decide whether to read side
             if (checkReadSide.checked && move.side) {
                 textToSpeak += move.side + "、";
             }
             textToSpeak += move.speak;
 
-            statusUpdate(move.display, (currentIndex + 1) + "手目");
+            statusUpdate(move.display, (currentIndex + 1) + "手目 " + (move.side||""));
 
             speechUtterance = new SpeechSynthesisUtterance(textToSpeak);
             speechUtterance.lang = 'ja-JP';
