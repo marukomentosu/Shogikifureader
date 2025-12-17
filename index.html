@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>将棋棋譜読み上げトレーナー v3 | By htmlマン</title>
+    <title>将棋棋譜読み上げトレーナー v4 | By htmlマン</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -42,7 +42,7 @@
 
         .container {
             display: grid;
-            grid-template-columns: 1fr; /* Default mobile first */
+            grid-template-columns: 1fr;
             gap: 20px;
             width: 100%;
             max-width: 900px;
@@ -74,7 +74,6 @@
             text-align: center;
         }
 
-        /* Customize file input for mobile */
         input[type="file"] {
             font-size: 0.9rem;
             width: 100%;
@@ -87,17 +86,8 @@
             justify-content: space-between;
         }
 
-        .btn-paste {
-            background-color: #2980b9;
-            color: white;
-            flex: 1;
-        }
-
-        .btn-reload {
-            background-color: #7f8c8d;
-            color: white;
-            flex: 1;
-        }
+        .btn-paste { background-color: #2980b9; color: white; flex: 1; }
+        .btn-reload { background-color: #7f8c8d; color: white; flex: 1; }
 
         textarea {
             width: 100%;
@@ -131,20 +121,12 @@
             align-items: center;
             position: sticky;
             top: 0;
-            z-index: 10; /* Keep visible on mobile scroll */
+            z-index: 10;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
 
-        #current-move-text {
-            font-size: 1.8rem;
-            font-weight: bold;
-        }
-
-        #next-move-text {
-            font-size: 0.8rem;
-            opacity: 0.8;
-            margin-top: 5px;
-        }
+        #current-move-text { font-size: 1.8rem; font-weight: bold; }
+        #next-move-text { font-size: 0.8rem; opacity: 0.8; margin-top: 5px; }
 
         .controls {
             display: grid;
@@ -161,10 +143,7 @@
             transition: all 0.2s;
             font-size: 0.95rem;
         }
-
-        button:active {
-            transform: scale(0.96);
-        }
+        button:active { transform: scale(0.96); }
 
         .btn-start { background-color: var(--primary-color); color: white; }
         .btn-pause { background-color: #f39c12; color: white; }
@@ -183,16 +162,9 @@
             margin-bottom: 12px;
         }
         
-        .setting-row label {
-            font-size: 0.9rem;
-            font-weight: bold;
-        }
+        .setting-row label { font-size: 0.9rem; font-weight: bold; }
+        input[type="range"] { width: 50%; }
 
-        input[type="range"] {
-            width: 50%;
-        }
-
-        /* Move List */
         .move-list {
             height: 250px;
             overflow-y: auto;
@@ -208,13 +180,8 @@
             border-bottom: 1px solid #f0f0f0;
             cursor: pointer;
         }
+        .move-item.active { background-color: var(--highlight-color); font-weight: bold; }
 
-        .move-item.active {
-            background-color: var(--highlight-color);
-            font-weight: bold;
-        }
-
-        /* Radio buttons for encoding */
         .encoding-selector {
             font-size: 0.8rem;
             display: flex;
@@ -226,23 +193,22 @@
 </head>
 <body>
 
-    <h1>将棋棋譜読み上げ v3</h1>
-    <div class="subtitle">スマホ対応版</div>
+    <h1>将棋棋譜読み上げ v4</h1>
+    <div class="subtitle">時間情報カット版</div>
 
     <div class="container">
         <div class="input-section">
             <div class="file-upload-wrapper">
                 <label for="kifu-file" style="display:block; margin-bottom:8px; font-weight:bold;">
-                    📂 ファイルを選択 (KIFなど)
+                    📂 KIFファイルを選択
                 </label>
                 <input type="file" id="kifu-file" onchange="handleFileUpload(event)">
                 
                 <div class="encoding-selector">
                     <span>文字コード:</span>
-                    <label><input type="radio" name="encoding" value="Shift_JIS" checked> Shift_JIS(標準)</label>
+                    <label><input type="radio" name="encoding" value="Shift_JIS" checked> Shift_JIS</label>
                     <label><input type="radio" name="encoding" value="UTF-8"> UTF-8</label>
                 </div>
-                <div style="font-size:0.7rem; color:#666; margin-top:4px;">※文字化けする場合はUTF-8を選んで再読込</div>
             </div>
 
             <div class="tool-bar">
@@ -250,7 +216,7 @@
                 <button class="btn-reload" onclick="parseKifu()">🔄 再解析</button>
             </div>
 
-            <textarea id="kifu-input" placeholder="ここに棋譜を貼り付け"></textarea>
+            <textarea id="kifu-input" placeholder="ここに棋譜が表示されます"></textarea>
         </div>
 
         <div class="control-section">
@@ -308,13 +274,11 @@
         const checkReadSide = document.getElementById('read-side');
         const fileInput = document.getElementById('kifu-file');
 
-        // Settings update
         function updateSettings() {
             rateVal.innerText = rateInput.value;
             intervalVal.innerText = intervalInput.value;
         }
 
-        // Paste function (Mobile friendly)
         async function pasteFromClipboard() {
             try {
                 const text = await navigator.clipboard.readText();
@@ -322,36 +286,32 @@
                 parseKifu();
                 statusUpdate("貼付完了", "クリップボードから読み込みました");
             } catch (err) {
-                alert("クリップボードへのアクセスが許可されていません。\nテキストエリアを長押しして「貼り付け」を行ってください。");
+                alert("クリップボードへのアクセスが許可されていません。\n手動で貼り付けてください。");
             }
         }
 
-        // File Upload with Encoding Switch
         function handleFileUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
 
             const reader = new FileReader();
-            
-            // Get selected encoding
             const encoding = document.querySelector('input[name="encoding"]:checked').value;
             
             reader.readAsText(file, encoding);
 
             reader.onload = function(e) {
-                const text = e.target.result;
-                inputArea.value = text;
+                inputArea.value = e.target.result;
                 parseKifu();
                 statusUpdate("読込完了", "ファイルを読み込みました");
-                fileInput.value = ''; // Reset
+                fileInput.value = '';
             };
 
             reader.onerror = function() {
-                alert("読み込み失敗。別のファイルを試してください。");
+                alert("読み込み失敗");
             };
         }
 
-        // Parser
+        // --- Parser (Logic Updated for v4) ---
         function parseKifu() {
             stopReading();
             const text = inputArea.value;
@@ -364,21 +324,31 @@
                 line = line.trim();
                 if (!line) return;
 
-                // Typical KIF cleanup
-                let cleanLine = line.replace(/^\d+\s*/, ''); 
-                
-                // Side detection
-                let side = "";
-                if (cleanLine.includes('▲') || cleanLine.includes('▼')) side = "先手";
-                else if (cleanLine.includes('△') || cleanLine.includes('▽')) side = "後手";
+                // Step 1: Remove Time Info specifically
+                // Matches patterns like ( 0:12/00:00:12) or (1:23)
+                // "Colon inside parentheses" is the key indicator of time
+                let lineNoTime = line.replace(/\(\s*\d+:[^)]+\)/g, '');
 
-                // Move extraction
-                let moveTextMatch = cleanLine.match(/([１-９1-9][一二三四五六七八九][歩香桂銀金角飛王玉と成龍馬同\s]+(?:\(.*\))?)/);
+                // Step 2: Remove Source Coordinates (e.g., (77))
+                // Just in case they are left over and not desired for reading
+                let lineClean = lineNoTime.replace(/\(\d+\)/g, '');
+
+                // Step 3: Remove Move Numbers at the start
+                lineClean = lineClean.replace(/^\d+\s*/, ''); 
+                
+                // Step 4: Identify Side
+                let side = "";
+                if (lineClean.includes('▲') || lineClean.includes('▼')) side = "先手";
+                else if (lineClean.includes('△') || lineClean.includes('▽')) side = "後手";
+
+                // Step 5: Extract Move Text
+                let moveTextMatch = lineClean.match(/([１-９1-9][一二三四五六七八九][歩香桂銀金角飛王玉と成龍馬同\s]+)/);
                 
                 if (moveTextMatch) {
                     let rawMove = moveTextMatch[0];
-                    let displayMove = rawMove.replace(/\(\d+\)/, '');
+                    let displayMove = rawMove.trim();
                     
+                    // Create speakable text
                     let speakText = displayMove.replace(/\s+/g, '');
                     if (speakText.startsWith('同')) {
                         speakText = speakText.replace('同', 'どう、');
@@ -387,7 +357,7 @@
                     }
 
                     moves.push({
-                        original: line,
+                        original: line, // Keep original for reference in list? Or use clean?
                         display: displayMove,
                         side: side,
                         speak: speakText
@@ -396,14 +366,10 @@
             });
 
             renderMoveList();
-            if(moves.length === 0 && text.length > 0) {
-                 statusUpdate("エラー", "有効な棋譜が見つかりません");
-                 // Auto-detect Mojibake hint
-                 if (text.includes('')) {
-                     alert("文字化けしている可能性があります。「UTF-8」を選んでファイルを読み直してください。");
-                 }
-            } else if (moves.length > 0) {
+            if(moves.length > 0) {
                 statusUpdate("待機中", `${moves.length} 手を読み込みました`);
+            } else if (text.length > 0) {
+                 statusUpdate("エラー", "棋譜が見つかりません");
             }
         }
 
@@ -412,7 +378,8 @@
             moves.forEach((move, index) => {
                 const div = document.createElement('div');
                 div.className = 'move-item';
-                div.innerText = `${index + 1}. ${move.original}`;
+                // Show clean move in list, not the full raw line with time
+                div.innerText = `${index + 1}. ${move.side ? move.side : ''}${move.display}`;
                 div.onclick = () => jumpTo(index);
                 div.id = `move-${index}`;
                 moveListArea.appendChild(div);
@@ -432,16 +399,12 @@
         }
 
         function startReading() {
-            if (moves.length === 0) {
-                alert("棋譜がありません。");
-                return;
-            }
+            if (moves.length === 0) return;
             if (currentIndex >= moves.length) currentIndex = 0;
 
             isPlaying = true;
             btnPlay.innerText = "⏸ 一時停止";
             btnPlay.className = "btn-pause";
-            
             readNextMove();
         }
 
@@ -470,7 +433,7 @@
             if (!isPlaying) return;
             if (currentIndex >= moves.length) {
                 stopReading();
-                statusUpdate("終了", "読み上げ完了");
+                statusUpdate("終了", "完了");
                 return;
             }
 
@@ -491,23 +454,19 @@
             
             speechUtterance.onend = function() {
                 if (!isPlaying) return;
-                
                 const intervalMs = parseFloat(intervalInput.value) * 1000;
                 
                 if (currentIndex + 1 < moves.length) {
                    nextMoveText.innerText = `次は... ${intervalInput.value}秒後`;
                 }
-
                 timer = setTimeout(() => {
                     currentIndex++;
                     readNextMove();
                 }, intervalMs);
             };
 
-            // Mobile often needs error handling for speech
             speechUtterance.onerror = function(e) {
                 console.error(e);
-                // Force continue on error
                 timer = setTimeout(() => {
                     currentIndex++;
                     readNextMove();
@@ -522,7 +481,6 @@
             const el = document.getElementById(`move-${index}`);
             if (el) {
                 el.classList.add('active');
-                // Center scroll
                 el.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         }
@@ -532,8 +490,7 @@
             nextMoveText.innerHTML = sub;
         }
         
-        // Initial setup
-        parseKifu(); // Parse placeholder
+        parseKifu();
     </script>
 </body>
 </html>
