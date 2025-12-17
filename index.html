@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>将棋棋譜読み上げトレーナー | By htmlマン</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #d35400;
+            --bg-color: #f5f6fa;
+            --panel-bg: #ffffff;
+            --text-color: #333;
+            --highlight-color: #f1c40f;
+        }
+
+        body {
+            font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+            font-size: 1.8rem;
+        }
+
+        .subtitle {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            width: 100%;
+            max-width: 900px;
+            background: var(--panel-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Input Area */
+        .input-section {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 300px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            resize: vertical;
+            font-family: monospace;
+            font-size: 0.9rem;
+            box-sizing: border-box;
+        }
+
+        /* Controls Area */
+        .control-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .status-display {
+            background: var(--primary-color);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            min-height: 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #current-move-text {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        #next-move-text {
+            font-size: 0.8rem;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        button {
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .btn-start { background-color: var(--primary-color); color: white; }
+        .btn-pause { background-color: #f39c12; color: white; }
+        .btn-stop { background-color: #c0392b; color: white; }
+        .btn-reset { background-color: #7f8c8d; color: white; }
+
+        .settings {
+            background: #eee;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .setting-row label {
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        input[type="range"] {
+            width: 60%;
+        }
+
+        /* Move List */
+        .move-list {
+            margin-top: 20px;
+            height: 200px;
+            overflow-y: auto;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            padding: 5px;
+            font-size: 0.9rem;
+        }
+
+        .move-item {
+            padding: 4px 8px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+        }
+
+        .move-item.active {
+            background-color: var(--highlight-color);
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>将棋棋譜読み上げトレーナー</h1>
+    <div class="subtitle">World's #1 Programmer "HTML MAN" Edition</div>
+
+    <div class="container">
+        <div class="input-section">
+            <label for="kifu-input"><strong>棋譜入力 (KIF形式など)</strong></label>
+            <textarea id="kifu-input" placeholder="ここに棋譜を貼り付けてください。
+例：
+1 ７六歩
+2 ３四歩
+3 ２六歩
+4 ４四歩
+...">
+1 ７六歩
+2 ３四歩
+3 ２六歩
+4 ４四歩
+5 ２五歩
+6 ３三角
+7 ４八銀
+8 ３二銀
+9 ５六歩
+10 ５四歩
+</textarea>
+            <button class="btn-reset" onclick="parseKifu()">棋譜を読み込む</button>
+        </div>
+
+        <div class="control-section">
+            <div class="status-display">
+                <div id="current-move-text">待機中</div>
+                <div id="next-move-text">「開始」を押してください</div>
+            </div>
+
+            <div class="controls">
+                <button class="btn-start" id="btn-play" onclick="togglePlay()">読み上げ開始</button>
+                <button class="btn-stop" onclick="stopReading()">停止・リセット</button>
+            </div>
+
+            <div class="settings">
+                <div class="setting-row">
+                    <label>読み上げ速度: <span id="rate-val">1.0</span></label>
+                    <input type="range" id="rate" min="0.5" max="2.0" step="0.1" value="1.0" oninput="updateSettings()">
+                </div>
+                <div class="setting-row">
+                    <label>間隔 (秒): <span id="interval-val">3.0</span></label>
+                    <input type="range" id="interval" min="1" max="15" step="0.5" value="3.0" oninput="updateSettings()">
+                </div>
+                <div class="setting-row">
+                    <label style="font-weight:normal; font-size: 0.8rem;">
+                        <input type="checkbox" id="read-side" checked> 先手/後手を読む
+                    </label>
+                </div>
+            </div>
+
+            <div class="move-list" id="move-list">
+                <div style="padding:10px; color:#999;">ここに読み込まれた指し手が表示されます</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State Management
+        let moves = [];
+        let currentIndex = 0;
+        let isPlaying = false;
+        let timer = null;
+        let synth = window.speechSynthesis;
+        let speechUtterance = null;
+
+        // DOM Elements
+        const inputArea = document.getElementById('kifu-input');
+        const moveListArea = document.getElementById('move-list');
+        const currentMoveText = document.getElementById('current-move-text');
+        const nextMoveText = document.getElementById('next-move-text');
+        const btnPlay = document.getElementById('btn-play');
+        const rateInput = document.getElementById('rate');
+        const rateVal = document.getElementById('rate-val');
+        const intervalInput = document.getElementById('interval');
+        const intervalVal = document.getElementById('interval-val');
+        const checkReadSide = document.getElementById('read-side');
+
+        // Initialize
+        window.onload = () => {
+            parseKifu(); // Parse default text on load
+        };
+
+        function updateSettings() {
+            rateVal.innerText = rateInput.value;
+            intervalVal.innerText = intervalInput.value;
+        }
+
+        // Parse Kifu Text
+        function parseKifu() {
+            stopReading();
+            const text = inputArea.value;
+            moves = [];
+            moveListArea.innerHTML = '';
+
+            // Regex looks for patterns like: "1 ７六歩" or "▲７六歩" or "△３四歩"
+            // Handles variation in width (full-width numbers) and separators
+            const lines = text.split('\n');
+            
+            lines.forEach(line => {
+                line = line.trim();
+                if (!line) return;
+
+                // Match typical move line (Number? + Symbol? + Destination + Piece + Extra info)
+                // Cleaning the line to extract just the move info
+                // Example match target: "７六歩", "同　銀", "76歩"
+                
+                // Simple parser logic:
+                // 1. Remove move numbers (digits followed by spaces or just digits at start)
+                let cleanLine = line.replace(/^\d+\s*/, ''); 
+                
+                // 2. Identify turn (Sente/Gote) if present
+                let side = "";
+                if (cleanLine.includes('▲') || cleanLine.includes('▼')) side = "先手";
+                else if (cleanLine.includes('△') || cleanLine.includes('▽')) side = "後手";
+
+                // 3. Extract the core move text (e.g., ７六歩)
+                // We keep standard shogi characters
+                let moveTextMatch = cleanLine.match(/([１-９1-9][一二三四五六七八九][歩香桂銀金角飛王玉と成龍馬同\s]+(?:\(.*\))?)/);
+                
+                if (moveTextMatch) {
+                    let rawMove = moveTextMatch[0];
+                    // Clean up "(77)" type notation often found in KIF
+                    let displayMove = rawMove.replace(/\(\d+\)/, '');
+                    
+                    // Create speakable text
+                    // Replace symbols/spaces to make it read smoothly
+                    let speakText = displayMove.replace(/\s+/g, '');
+                    if (speakText.startsWith('同')) {
+                        speakText = speakText.replace('同', 'どう、');
+                    } else {
+                        // Expand numbers for better speech (optional, but TTS usually handles ７六 fine)
+                        // Adding slight pause after coordinates
+                        speakText = speakText.replace(/([１-９][一二三四五六七八九])/, '$1、'); 
+                    }
+
+                    moves.push({
+                        original: line,
+                        display: displayMove, // Visual
+                        side: side,
+                        speak: speakText // Audio
+                    });
+                }
+            });
+
+            renderMoveList();
+            statusUpdate("待機中", `${moves.length} 手を読み込みました`);
+        }
+
+        function renderMoveList() {
+            moveListArea.innerHTML = '';
+            moves.forEach((move, index) => {
+                const div = document.createElement('div');
+                div.className = 'move-item';
+                div.innerText = `${index + 1}. ${move.original}`;
+                div.onclick = () => jumpTo(index);
+                div.id = `move-${index}`;
+                moveListArea.appendChild(div);
+            });
+        }
+
+        function jumpTo(index) {
+            stopReading(); // Stop current playback
+            currentIndex = index;
+            highlightMove(index);
+            statusUpdate("準備完了", "再生ボタンでここから開始");
+        }
+
+        function togglePlay() {
+            if (isPlaying) {
+                pauseReading();
+            } else {
+                startReading();
+            }
+        }
+
+        function startReading() {
+            if (moves.length === 0) {
+                alert("棋譜が見つかりません。入力して読み込みボタンを押してください。");
+                return;
+            }
+            if (currentIndex >= moves.length) {
+                currentIndex = 0;
+            }
+
+            isPlaying = true;
+            btnPlay.innerText = "一時停止";
+            btnPlay.className = "btn-pause";
+            
+            readNextMove();
+        }
+
+        function pauseReading() {
+            isPlaying = false;
+            clearTimeout(timer);
+            synth.cancel();
+            btnPlay.innerText = "再開";
+            btnPlay.className = "btn-start";
+            statusUpdate("一時停止", "");
+        }
+
+        function stopReading() {
+            isPlaying = false;
+            clearTimeout(timer);
+            synth.cancel();
+            currentIndex = 0;
+            btnPlay.innerText = "読み上げ開始";
+            btnPlay.className = "btn-start";
+            
+            // Remove highlights
+            document.querySelectorAll('.move-item').forEach(el => el.classList.remove('active'));
+            statusUpdate("停止", "最初に戻りました");
+        }
+
+        function readNextMove() {
+            if (!isPlaying) return;
+            if (currentIndex >= moves.length) {
+                stopReading();
+                statusUpdate("終了", "全ての指し手を読み上げました");
+                return;
+            }
+
+            const move = moves[currentIndex];
+            highlightMove(currentIndex);
+
+            // Construct speech text
+            let textToSpeak = "";
+            if (checkReadSide.checked && move.side) {
+                textToSpeak += move.side + "、";
+            }
+            textToSpeak += move.speak;
+
+            statusUpdate(move.display, (currentIndex + 1) + "手目");
+
+            // Speech Synthesis Setup
+            speechUtterance = new SpeechSynthesisUtterance(textToSpeak);
+            speechUtterance.lang = 'ja-JP';
+            speechUtterance.rate = parseFloat(rateInput.value);
+            
+            // Event when speech finishes
+            speechUtterance.onend = function() {
+                if (!isPlaying) return;
+                
+                // Wait for the interval before next move
+                const intervalMs = parseFloat(intervalInput.value) * 1000;
+                
+                // Update text to show waiting
+                if (currentIndex + 1 < moves.length) {
+                   nextMoveText.innerText = `次は... ${intervalInput.value}秒後`;
+                }
+
+                timer = setTimeout(() => {
+                    currentIndex++;
+                    readNextMove();
+                }, intervalMs);
+            };
+
+            speechUtterance.onerror = function(e) {
+                console.error('Speech error', e);
+                // Try to continue anyway
+                timer = setTimeout(() => {
+                    currentIndex++;
+                    readNextMove();
+                }, 1000);
+            };
+
+            synth.speak(speechUtterance);
+        }
+
+        function highlightMove(index) {
+            // Remove old highlight
+            document.querySelectorAll('.move-item.active').forEach(el => el.classList.remove('active'));
+            
+            // Add new highlight
+            const el = document.getElementById(`move-${index}`);
+            if (el) {
+                el.classList.add('active');
+                // Scroll into view
+                el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        function statusUpdate(main, sub) {
+            currentMoveText.innerText = main;
+            nextMoveText.innerText = sub;
+        }
+
+    </script>
+</body>
+</html>
