@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>将棋棋譜読み上げトレーナー | By htmlマン</title>
+    <title>将棋棋譜読み上げトレーナー v2 | By htmlマン</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -61,6 +61,19 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
+        }
+
+        .file-upload-wrapper {
+            background: #eef2f7;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px dashed #adb5bd;
+            text-align: center;
+        }
+
+        input[type="file"] {
+            font-size: 0.9rem;
+            width: 100%;
         }
 
         textarea {
@@ -177,18 +190,23 @@
 </head>
 <body>
 
-    <h1>将棋棋譜読み上げトレーナー</h1>
+    <h1>将棋棋譜読み上げトレーナー v2</h1>
     <div class="subtitle">World's #1 Programmer "HTML MAN" Edition</div>
 
     <div class="container">
         <div class="input-section">
-            <label for="kifu-input"><strong>棋譜入力 (KIF形式など)</strong></label>
-            <textarea id="kifu-input" placeholder="ここに棋譜を貼り付けてください。
+            <div class="file-upload-wrapper">
+                <label for="kifu-file" style="display:block; margin-bottom:5px; font-weight:bold; font-size:0.9rem;">
+                    📁 KIFファイルを開く (.kif/.txt)
+                </label>
+                <input type="file" id="kifu-file" accept=".kif,.kifu,.txt" onchange="handleFileUpload(event)">
+                <div style="font-size:0.7rem; color:#666; margin-top:4px;">※Shift_JIS形式として読み込みます</div>
+            </div>
+
+            <textarea id="kifu-input" placeholder="ここに棋譜を貼り付けるか、上のボタンからファイルを選択してください。
 例：
 1 ７六歩
 2 ３四歩
-3 ２六歩
-4 ４四歩
 ...">
 1 ７六歩
 2 ３四歩
@@ -201,7 +219,7 @@
 9 ５六歩
 10 ５四歩
 </textarea>
-            <button class="btn-reset" onclick="parseKifu()">棋譜を読み込む</button>
+            <button class="btn-reset" onclick="parseKifu()">テキストエリアの内容を再読み込み</button>
         </div>
 
         <div class="control-section">
@@ -257,16 +275,44 @@
         const intervalInput = document.getElementById('interval');
         const intervalVal = document.getElementById('interval-val');
         const checkReadSide = document.getElementById('read-side');
+        const fileInput = document.getElementById('kifu-file');
 
         // Initialize
         window.onload = () => {
-            parseKifu(); // Parse default text on load
+            parseKifu(); 
         };
 
         function updateSettings() {
             rateVal.innerText = rateInput.value;
             intervalVal.innerText = intervalInput.value;
         }
+
+        // --- File Upload Logic (New Feature) ---
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            
+            // 重要: 一般的なKIFファイル(柿木将棋など)は Shift_JIS で保存されています。
+            // UTF-8で読み込むと文字化けするため、明示的に 'Shift_JIS' を指定します。
+            reader.readAsText(file, 'Shift_JIS');
+
+            reader.onload = function(e) {
+                const text = e.target.result;
+                inputArea.value = text;
+                parseKifu(); // Parse immediately after loading
+                statusUpdate("読込完了", "ファイルから棋譜を読み込みました");
+                
+                // Clear file input so same file can be selected again if needed
+                fileInput.value = '';
+            };
+
+            reader.onerror = function() {
+                alert("ファイルの読み込みに失敗しました。");
+            };
+        }
+        // --------------------------------------
 
         // Parse Kifu Text
         function parseKifu() {
@@ -275,58 +321,50 @@
             moves = [];
             moveListArea.innerHTML = '';
 
-            // Regex looks for patterns like: "1 ７六歩" or "▲７六歩" or "△３四歩"
-            // Handles variation in width (full-width numbers) and separators
             const lines = text.split('\n');
             
             lines.forEach(line => {
                 line = line.trim();
                 if (!line) return;
 
-                // Match typical move line (Number? + Symbol? + Destination + Piece + Extra info)
-                // Cleaning the line to extract just the move info
-                // Example match target: "７六歩", "同　銀", "76歩"
-                
-                // Simple parser logic:
-                // 1. Remove move numbers (digits followed by spaces or just digits at start)
+                // 1. Clean move numbers
                 let cleanLine = line.replace(/^\d+\s*/, ''); 
                 
-                // 2. Identify turn (Sente/Gote) if present
+                // 2. Identify turn
                 let side = "";
                 if (cleanLine.includes('▲') || cleanLine.includes('▼')) side = "先手";
                 else if (cleanLine.includes('△') || cleanLine.includes('▽')) side = "後手";
 
-                // 3. Extract the core move text (e.g., ７六歩)
-                // We keep standard shogi characters
+                // 3. Extract the core move text
                 let moveTextMatch = cleanLine.match(/([１-９1-9][一二三四五六七八九][歩香桂銀金角飛王玉と成龍馬同\s]+(?:\(.*\))?)/);
                 
                 if (moveTextMatch) {
                     let rawMove = moveTextMatch[0];
-                    // Clean up "(77)" type notation often found in KIF
                     let displayMove = rawMove.replace(/\(\d+\)/, '');
                     
                     // Create speakable text
-                    // Replace symbols/spaces to make it read smoothly
                     let speakText = displayMove.replace(/\s+/g, '');
                     if (speakText.startsWith('同')) {
                         speakText = speakText.replace('同', 'どう、');
                     } else {
-                        // Expand numbers for better speech (optional, but TTS usually handles ７六 fine)
-                        // Adding slight pause after coordinates
                         speakText = speakText.replace(/([１-９][一二三四五六七八九])/, '$1、'); 
                     }
 
                     moves.push({
                         original: line,
-                        display: displayMove, // Visual
+                        display: displayMove,
                         side: side,
-                        speak: speakText // Audio
+                        speak: speakText
                     });
                 }
             });
 
             renderMoveList();
-            statusUpdate("待機中", `${moves.length} 手を読み込みました`);
+            if(moves.length > 0) {
+                statusUpdate("待機中", `${moves.length} 手を読み込みました`);
+            } else {
+                statusUpdate("待機中", "棋譜が見つかりません");
+            }
         }
 
         function renderMoveList() {
@@ -342,7 +380,7 @@
         }
 
         function jumpTo(index) {
-            stopReading(); // Stop current playback
+            stopReading();
             currentIndex = index;
             highlightMove(index);
             statusUpdate("準備完了", "再生ボタンでここから開始");
@@ -358,7 +396,7 @@
 
         function startReading() {
             if (moves.length === 0) {
-                alert("棋譜が見つかりません。入力して読み込みボタンを押してください。");
+                alert("棋譜が見つかりません。");
                 return;
             }
             if (currentIndex >= moves.length) {
@@ -389,7 +427,6 @@
             btnPlay.innerText = "読み上げ開始";
             btnPlay.className = "btn-start";
             
-            // Remove highlights
             document.querySelectorAll('.move-item').forEach(el => el.classList.remove('active'));
             statusUpdate("停止", "最初に戻りました");
         }
@@ -405,7 +442,6 @@
             const move = moves[currentIndex];
             highlightMove(currentIndex);
 
-            // Construct speech text
             let textToSpeak = "";
             if (checkReadSide.checked && move.side) {
                 textToSpeak += move.side + "、";
@@ -414,19 +450,15 @@
 
             statusUpdate(move.display, (currentIndex + 1) + "手目");
 
-            // Speech Synthesis Setup
             speechUtterance = new SpeechSynthesisUtterance(textToSpeak);
             speechUtterance.lang = 'ja-JP';
             speechUtterance.rate = parseFloat(rateInput.value);
             
-            // Event when speech finishes
             speechUtterance.onend = function() {
                 if (!isPlaying) return;
                 
-                // Wait for the interval before next move
                 const intervalMs = parseFloat(intervalInput.value) * 1000;
                 
-                // Update text to show waiting
                 if (currentIndex + 1 < moves.length) {
                    nextMoveText.innerText = `次は... ${intervalInput.value}秒後`;
                 }
@@ -439,7 +471,6 @@
 
             speechUtterance.onerror = function(e) {
                 console.error('Speech error', e);
-                // Try to continue anyway
                 timer = setTimeout(() => {
                     currentIndex++;
                     readNextMove();
@@ -450,14 +481,10 @@
         }
 
         function highlightMove(index) {
-            // Remove old highlight
             document.querySelectorAll('.move-item.active').forEach(el => el.classList.remove('active'));
-            
-            // Add new highlight
             const el = document.getElementById(`move-${index}`);
             if (el) {
                 el.classList.add('active');
-                // Scroll into view
                 el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
         }
@@ -466,7 +493,6 @@
             currentMoveText.innerText = main;
             nextMoveText.innerText = sub;
         }
-
     </script>
 </body>
 </html>
