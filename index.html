@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>将棋棋譜読み上げトレーナー v4 | By htmlマン</title>
+    <title>将棋棋譜読み上げトレーナー v5 | By htmlマン</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -193,8 +193,8 @@
 </head>
 <body>
 
-    <h1>将棋棋譜読み上げ v4</h1>
-    <div class="subtitle">時間情報カット版</div>
+    <h1>将棋棋譜読み上げ v5</h1>
+    <div class="subtitle">自然な発音対応版</div>
 
     <div class="container">
         <div class="input-section">
@@ -311,7 +311,7 @@
             };
         }
 
-        // --- Parser (Logic Updated for v4) ---
+        // --- Parser (Pronunciation Logic Added) ---
         function parseKifu() {
             stopReading();
             const text = inputArea.value;
@@ -324,40 +324,55 @@
                 line = line.trim();
                 if (!line) return;
 
-                // Step 1: Remove Time Info specifically
-                // Matches patterns like ( 0:12/00:00:12) or (1:23)
-                // "Colon inside parentheses" is the key indicator of time
+                // Cleanup Time and Move Number
                 let lineNoTime = line.replace(/\(\s*\d+:[^)]+\)/g, '');
-
-                // Step 2: Remove Source Coordinates (e.g., (77))
-                // Just in case they are left over and not desired for reading
-                let lineClean = lineNoTime.replace(/\(\d+\)/g, '');
-
-                // Step 3: Remove Move Numbers at the start
-                lineClean = lineClean.replace(/^\d+\s*/, ''); 
+                let lineClean = lineNoTime.replace(/\(\d+\)/g, '').replace(/^\d+\s*/, ''); 
                 
-                // Step 4: Identify Side
+                // Identify Side
                 let side = "";
                 if (lineClean.includes('▲') || lineClean.includes('▼')) side = "先手";
                 else if (lineClean.includes('△') || lineClean.includes('▽')) side = "後手";
 
-                // Step 5: Extract Move Text
+                // Extract Move Text
                 let moveTextMatch = lineClean.match(/([１-９1-9][一二三四五六七八九][歩香桂銀金角飛王玉と成龍馬同\s]+)/);
                 
                 if (moveTextMatch) {
                     let rawMove = moveTextMatch[0];
                     let displayMove = rawMove.trim();
                     
-                    // Create speakable text
+                    // --- Pronunciation Processing ---
+                    // Base cleanup
                     let speakText = displayMove.replace(/\s+/g, '');
+                    
+                    // 1. Coordinate Handling
                     if (speakText.startsWith('同')) {
-                        speakText = speakText.replace('同', 'どう、');
+                        // "Dou" becomes "Dou," to add a slight pause and correct reading
+                        speakText = speakText.replace(/^同/, 'どう、');
                     } else {
+                        // Add pause after coordinates (e.g., 76 -> 76, )
                         speakText = speakText.replace(/([１-９][一二三四五六七八九])/, '$1、'); 
                     }
 
+                    // 2. Piece/Action Pronunciation Overrides (User Request + Common Fixes)
+                    speakText = speakText
+                        .replace(/桂/g, 'けい')  // Katsura -> Kei
+                        .replace(/角/g, 'かく')  // Kado/Sumi -> Kaku
+                        .replace(/成/g, 'なり')  // Sei/Naru -> Nari
+                        .replace(/歩/g, 'ふ')    // Ayumi -> Fu (Very common error)
+                        .replace(/銀/g, 'ぎん')
+                        .replace(/金/g, 'きん')
+                        .replace(/飛/g, 'ひ')
+                        .replace(/王/g, 'おう')
+                        .replace(/玉/g, 'ぎょく')
+                        .replace(/右/g, 'みぎ')
+                        .replace(/左/g, 'ひだり')
+                        .replace(/寄/g, 'より')
+                        .replace(/引/g, 'ひく')
+                        .replace(/直/g, 'すぐ')
+                        .replace(/打/g, 'うつ');
+
                     moves.push({
-                        original: line, // Keep original for reference in list? Or use clean?
+                        original: line,
                         display: displayMove,
                         side: side,
                         speak: speakText
@@ -378,7 +393,6 @@
             moves.forEach((move, index) => {
                 const div = document.createElement('div');
                 div.className = 'move-item';
-                // Show clean move in list, not the full raw line with time
                 div.innerText = `${index + 1}. ${move.side ? move.side : ''}${move.display}`;
                 div.onclick = () => jumpTo(index);
                 div.id = `move-${index}`;
